@@ -1,0 +1,46 @@
+### változók
+@protocol = http://
+@hostname = localhost
+@port = 8000
+@host = {{protocol}}{{hostname}}:{{port}}
+### @token = 12|ibiwTdr77o8ppToh1tBxIkckBNb8ECjIjLgaweTaa757cdef
+
+### teszt
+get {{host}}/api/x
+
+
+### get products
+get {{host}}/api/instruments
+
+
+### get product by id
+get {{host}}/api/instruments/5
+
+
+### post products
+POST  {{host}}/api/instruments
+Accept: application/json
+Content-Type: application/json
+
+{
+    "name": "tesz1",
+    "description": "bla bal",
+    "brand": "brand",
+    "price": 8000,
+    "quantity": 22
+}
+
+### delete product by id
+delete {{host}}/api/instruments/15
+Accept: application/json
+Content-Type: application/json
+
+### post products
+PATCH {{host}}/api/instruments/1
+Accept: application/json
+Content-Type: application/json
+
+{
+    "price": 10000,
+    "quantity": 20000
+}
