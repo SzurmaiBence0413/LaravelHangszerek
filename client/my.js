@@ -1,106 +1,189 @@
-const { createApp } = Vue;
+const { createApp } = Vue
 
 createApp({
-  data() {
-    return {
-      apiUrl: "http://127.0.0.1:8000/api/instruments", // <- Laravel API URL
-      items: [],
-      newItem: "",
-      editId: null,
-      editText: "",
-      searchName: "",
-    };
-  },
-
-  mounted() {
-    this.fetchItems();
-  },
-
-  methods: {
-    // 🟢 Összes elem (GET /api/instruments)
-    async fetchItems() {
-      const res = await fetch(this.apiUrl);
-      const json = await res.json();
-      this.items = json.data || [];
+    data() {
+        return {
+            message: 'Instruments',
+            urlApi: "http://localhost:8000/api",
+            rows: [],  // Termékek tárolása
+            isFormVisible: false,  // Az input mezők láthatóságát szabályozó változó
+            isUpdateVisible: false, // Az update form láthatóságát szabályozó változó
+            isDeleteVisible: false, // A delete form láthatóságát szabályozó változó
+            newProduct: { // Beviteli mezők modellje
+                name: '',
+                description: '',
+                brand: '',
+                price: '',
+                quantity: '' // Stock helyett Quantity
+            },
+            updateProduct: { // Frissítő form adatmodellje
+                id: null,
+                name: '',
+                description: '',
+                brand: '',
+                price: '',
+                quantity: ''
+            },
+            deleteProductId: null, // A törlendő termék ID-ja
+            selectedProductId: null // A frissíteni kívánt termék ID-ja
+        }
     },
+    methods: {
+        // GET művelet a termékek lekérésére
+        async getInstruments() {
+            const url = `${this.urlApi}/instruments`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Response status: ${response.status}`);
+                }
 
-    // 🟢 Új elem létrehozása (POST /api/instruments)
-    async addItem() {
-      if (!this.newItem.trim()) return;
-      const res = await fetch(this.apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: this.newItem }),
-      });
+                const result = await response.json();
+                console.log("API válasz:", result);
+                this.rows = [...result.data];  // A kapott adatokat eltároljuk
+            } catch (error) {
+                console.error("API hiba:", error.message);
+            }
+        },
 
-      const json = await res.json();
+        // POST művelet új termék hozzáadására
+        async postInstruments(data) {
+            const url = `${this.urlApi}/instruments`;
+            const method = "POST";
+            const body = JSON.stringify(data);
+            const headers = {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            };
 
-      if (res.ok) {
-        this.items.push(json.data);
-        this.newItem = "";
-      } else {
-        alert(json.message || "Hiba az új elem létrehozásakor!");
-      }
-    },
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: headers,
+                    body: body
+                });
+                if (!response.ok) {
+                    throw new Error(`Response status: ${response.status}`);
+                }
 
-    // 🟢 Egy elem megjelenítése (GET /api/instruments/{id})
-    async showItem(id) {
-      const res = await fetch(`${this.apiUrl}/${id}`);
-      const json = await res.json();
-      if (res.ok) {
-        alert(`ID: ${json.data.id}\nNév: ${json.data.name}`);
-      } else {
-        alert(json.message || "Hiba: elem nem található!");
-      }
-    },
+                const result = await response.json();
+                console.log(result);
+                this.getInstruments();  // Frissítjük a listát
+                this.newProduct = { name: '', description: '', brand: '', price: '', quantity: '' }; // Reseteljük a formot
+            } catch (error) {
+                console.error(error.message);
+            }
+        },
 
-    // ✏️ Szerkesztés indítása
-    startEdit(item) {
-      this.editId = item.id;
-      this.editText = item.name;
-    },
+        // PUT művelet a meglévő termék frissítésére
+        async updateInstruments(id, updatedData) {
+            const url = `${this.urlApi}/instruments/${id}`;
+            const method = "PUT";
+            const body = JSON.stringify(updatedData);
+            const headers = {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            };
 
-    // 💾 Mentés (PUT /api/instruments/{id})
-    async saveEdit(item) {
-      if (!this.editText.trim()) return;
-      const res = await fetch(`${this.apiUrl}/${item.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: this.editText }),
-      });
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: headers,
+                    body: body
+                });
+                if (!response.ok) {
+                    throw new Error(`Response status: ${response.status}`);
+                }
 
-      const json = await res.json();
-      if (res.ok) {
-        const index = this.items.findIndex(i => i.id === item.id);
-        this.items[index] = json.data.data; // Laravel nested data miatt
-        this.editId = null;
-        this.editText = "";
-      } else {
-        alert(json.message || "Hiba a mentés közben!");
-      }
-    },
+                const result = await response.json();
+                console.log(result);
+                this.getInstruments();  // Frissítjük a listát
+                this.isUpdateVisible = false;  // Elrejtjük az update formot
+            } catch (error) {
+                console.error(error.message);
+            }
+        },
 
-    // 🗑️ Törlés (DELETE /api/instruments/{id})
-    async deleteItem(id) {
-      if (!confirm("Biztosan törlöd?")) return;
-      const res = await fetch(`${this.apiUrl}/${id}`, { method: "DELETE" });
-      const json = await res.json();
-      if (res.ok) {
-        this.items = this.items.filter(i => i.id !== id);
-      } else {
-        alert(json.message || "Hiba a törlés közben!");
-      }
-    },
+        // DELETE művelet a termék törlésére
+        async deleteInstruments(id) {
+            const url = `${this.urlApi}/instruments/${id}`;
+            const method = "DELETE";
+            const headers = {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            };
 
-    // 🔍 Egyedi: Keresés név alapján (client-side)
-    searchItems() {
-      const query = this.searchName.toLowerCase();
-      return this.items.filter(i => i.name.toLowerCase().includes(query));
-    },
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: headers
+                });
+                if (!response.ok) {
+                    throw new Error(`Response status: ${response.status}`);
+                }
 
-    showAllItems() {
-      this.searchName = "";
-      this.fetchItems();
-    },
-  },
-}).mount("#app");
+                const result = await response.json();
+                console.log(result);
+                this.getInstruments();  // Frissítjük a listát
+                this.isDeleteVisible = false;  // Elrejtjük a delete formot
+            } catch (error) {
+                console.error(error.message);
+            }
+        },
+
+        // GET gomb kattintáskor
+        onClickButtonHangszerek() {
+            this.getInstruments();
+        },
+
+        // POST gomb kattintáskor
+        onClickButtonPost() {
+            this.postInstruments(this.newProduct);
+        },
+
+        // PUT gomb kattintáskor
+        onClickButtonUpdate() {
+            // Az ID alapján frissítjük a terméket
+            this.updateInstruments(this.updateProduct.id, this.updateProduct);
+        },
+
+        // DELETE gomb kattintáskor
+        onClickButtonDelete() {
+            this.deleteInstruments(this.deleteProductId);
+        },
+
+        // Toggle a form láthatósága
+        toggleForm() {
+            this.isFormVisible = !this.isFormVisible;
+        },
+
+        // Toggle az update form láthatósága
+        toggleUpdateForm() {
+            this.isUpdateVisible = !this.isUpdateVisible;
+        },
+
+        // Toggle a delete form láthatósága
+        toggleDeleteForm() {
+            this.isDeleteVisible = !this.isDeleteVisible;
+        },
+
+        // Termékadatok betöltése ID alapján az UPDATE formhoz
+        async fetchProductData() {
+            if (!this.updateProduct.id) return;
+
+            const url = `${this.urlApi}/instruments/${this.updateProduct.id}`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Response status: ${response.status}`);
+                }
+
+                const productData = await response.json();
+                // A termékadatokat betöltjük a formba
+                this.updateProduct = { ...productData }; // Ezt a terméket frissítjük
+            } catch (error) {
+                console.error("API hiba:", error.message);
+            }
+        }
+    }
+}).mount('#app');
